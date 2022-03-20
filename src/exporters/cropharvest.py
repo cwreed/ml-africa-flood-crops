@@ -22,7 +22,7 @@ class CropHarvestExporter(BaseExporter):
         logger.info("Beginning export of NASA CropHarvest cropland labels")
         outpath = os.path.join(self.output_folder, 'labels.geojson')
         
-        if outpath.exists():
+        if os.path.exists(outpath):
             logger.info(f"Data already exported and available at {outpath}")
             CropHarvestLabels(self.output_folder, download=False)
         else:

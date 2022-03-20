@@ -1,15 +1,39 @@
 import ee
 from math import cos, radians
 from functools import reduce
+
+from sklearn.metrics import max_error
 from src.utils.regions import BoundingBox
-from typing import Union
+from typing import Union, Optional
 
 
 class EEBoundingBox(BoundingBox):
     """A BoundingBox with additional Earth Engine functions"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, 
+        bbox: Optional[BoundingBox]=None, 
+        min_lon: Optional[float]=None, 
+        min_lat: Optional[float]=None,
+        max_lon: Optional[float]=None,
+        max_lat: Optional[float]=None
+    ) -> None:
+
+        assert (
+            (bbox is not None) | all([min_lon, min_lat, max_lon, max_lat])
+        ), "Must supply either a BoundingBox or min_lon, min_lat, max_lon, max_lat to initialize EEBoundingBox"
+
+        if bbox:
+            min_lon=bbox.min_lon
+            min_lat=bbox.min_lat
+            max_lon=bbox.max_lon
+            max_lat=bbox.max_lat
+
+        super().__init__(
+            min_lon=min_lon,
+            min_lat=min_lat,
+            max_lon=max_lon,
+            max_lat=max_lat
+        )
 
     def to_ee_polygon(self) -> ee.Geometry.Polygon:
         return ee.Geometry.Polygon(
@@ -61,6 +85,5 @@ def bounding_boxes_to_polygon(ee_bboxes: list[EEBoundingBox]) -> ee.Geometry.Mul
     """Helper function to convert a list of EEBoundingBoxes into a MultiPolygon"""
 
     ee_polygons = [bbox.to_ee_polygon() for bbox in ee_bboxes]
-    ee_multipolygon = ee.Geometry.MultiPolygon(ee_polygons)
 
-    return ee_multipolygon
+    return ee.Geometry.MultiPolygon(ee_polygons).dissolve().simplify(maxError=1)
