@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Union
+
 import numpy as np
 
 @dataclass
@@ -94,7 +95,7 @@ STR2BB ={
 }
 
 REGIONS = {
-    'SSA': STR2BB.keys(),
+    'SSA': list(STR2BB.keys()),
     'East Africa': ['Ethiopia', 'Kenya', 'Somalia', 'South Sudan', 'Sudan', 'Uganda'],
     'West Africa & Chad': ['Burkina Faso', 'Chad', 'Mali', 'Niger', 'Nigeria'],
     'South Africa': ['Malawi', 'Mozambique', 'Zambia', 'Zimbabwe']

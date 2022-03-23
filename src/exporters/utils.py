@@ -1,8 +1,6 @@
 import ee
 from math import cos, radians
-from functools import reduce
 
-from sklearn.metrics import max_error
 from src.utils.regions import BoundingBox
 from typing import Union, Optional
 

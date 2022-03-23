@@ -275,7 +275,7 @@ class C2SDFOExporter(BaseExporter):
                             region=region,
                             numPixels=100000,
                             geometries=False,
-                            seed=self.random_seed
+                            seed=4
                         )
                     )
         ).limit(n_sample)
@@ -368,9 +368,9 @@ class C2SDFOExporter(BaseExporter):
         flood_labels = pd.concat([positive_labels, negative_labels], axis = 0)
 
         if self.region_type == 'multiple':
-            region_name = "_".join(self.region)
+            region_name = "_".join(self.region).lower()
         else:
-            region_name = self.region
+            region_name = self.region.lower()
 
         outpath = os.path.join(
             self.output_folder, 
