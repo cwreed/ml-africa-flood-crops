@@ -4,7 +4,7 @@ from ..utils.regions import STR2BB, REGIONS
 
 __all__ = [
     "CropHarvestExporter",
-    "C2SDFOExporter"
+    "C2SDFOExporter",
     "STR2BB",
     "REGIONS"
 ]
