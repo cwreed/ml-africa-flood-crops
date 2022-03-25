@@ -130,7 +130,7 @@ class C2SDFOExporter(BaseExporter):
 
         """Use geometries to sample negative pixels"""
 
-        perm_water_mask = lambda img: img.select('flooded').eq(0).And(img.select('jrc_perm_water').gt(0))
+        perm_water_mask = lambda img: img.select('jrc_perm_water').gt(0).And(img.select('flooded').eq(0))
         non_flood_mask = lambda img: img.select('flooded').eq(0).And(img.select('jrc_perm_water').eq(0))
 
         logger.info("Sampling permanent water bodies.")
@@ -153,6 +153,16 @@ class C2SDFOExporter(BaseExporter):
                                     .get(2)
                                     .getInfo()
                                 )
+
+        """There may not be enough permanent water samples to take, so we can add the deficit to the other negative samples"""
+
+        perm_water_df.dropna(inplace=True)
+
+        self.n_neg_per_img = (
+            np.array(self.n_neg_per_img) + 
+            (np.array(self.n_neg_per_img) - 3 * perm_water_df.groupby(['began', 'ended']).size().values)
+        ).tolist()
+
 
         logger.info("Sampling negative pixels near positive pixels.")
 

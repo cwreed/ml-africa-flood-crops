@@ -12,8 +12,7 @@ sys.path.append("..")
 try:
     ee.Initialize()
 except ee.ee_exception.EEException:
-    ee.Authenticate()
-    ee.Initialize()
+    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
 
 from src.exporters import (
     CropHarvestExporter,
@@ -44,11 +43,7 @@ def export_c2sdfo(
 
 
 if __name__ == "__main__":
-    try:
-        ee.Initialize()
-    except ee.ee_exception.EEException:
-        ee.Authenticate()
-        ee.Initialize()
+    
 
     parser = argparse.ArgumentParser(description="Data export script")
     parser.add_argument("--region", help=f"One of {REGIONS.keys()} or one or more of {STR2BB.keys()}.")
