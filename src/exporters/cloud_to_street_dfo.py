@@ -23,14 +23,14 @@ class C2SDFOExporter(BaseExporter):
 
         assert (
             (
-                (type(region) is str) &
+                (isinstance(region, str)) &
                 (
                     (region in REGIONS.keys()) | 
                     (region in STR2BB.keys())
                 )
             ) |
             (
-                (type(region) is list) & 
+                (isinstance(region, list)) & 
                 all(r in STR2BB.keys() for r in region)
             )
         ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
@@ -43,11 +43,11 @@ class C2SDFOExporter(BaseExporter):
             self.region_bbox = combine_bounding_boxes(region)
             self.ee_region_geo = EEBoundingBox(self.region_bbox).to_ee_polygon()
         else:
-            if (type(region) is str) & (region in REGIONS.keys()):
+            if (isinstance(region, str)) & (region in REGIONS.keys()):
                 self.region_type = 'multiple'
                 self.region_bbox = [STR2BB[r] for r in REGIONS[region]]
                 self.ee_region_geo = bounding_boxes_to_polygon([EEBoundingBox(region) for region in self.region_bbox])
-            elif (type(region) is str) & (region in STR2BB.keys()):
+            elif (isinstance(region, str)) & (region in STR2BB.keys()):
                 self.region_type = 'single'
                 self.region_bbox = STR2BB[region]
                 self.ee_region_geo = EEBoundingBox(self.region_bbox).to_ee_polygon()
