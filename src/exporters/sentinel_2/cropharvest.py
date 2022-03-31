@@ -1,7 +1,5 @@
 import os
-from pathlib import Path
-from datetime import date, timedelta
-import logging
+from datetime import timedelta
 
 from .base import BaseSentinel2Exporter
 from src.exporters import CropHarvestExporter
@@ -58,9 +56,6 @@ class CropHarvestSentinel2Exporter(BaseSentinel2Exporter):
         was sampled is important.
         
         """
-
-        logger = logging.getLogger(__name__)
-
         end_dates = pd.to_datetime(self.labels.collection_date)
         start_dates = end_dates - timedelta(days = days_per_timestep * n_timesteps)
 

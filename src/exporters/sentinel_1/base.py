@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Union
 from abc import ABC, abstractmethod
-from datetime import date, timedelta, datetime
+from datetime import date, datetime
 import logging
 
 from ..base import BaseExporter

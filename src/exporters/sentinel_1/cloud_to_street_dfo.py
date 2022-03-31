@@ -1,12 +1,9 @@
 import os
-from pathlib import Path
-from typing import Union
-from datetime import date, timedelta
+from datetime import timedelta
 
 from .base import BaseSentinel1Exporter
 from ..cloud_to_street_dfo import C2SDFOExporter
 from ..utils import EEBoundingBox, bounding_box_from_center
-from src.utils.regions import REGIONS, STR2BB
 
 import ee
 import numpy as np

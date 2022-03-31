@@ -97,8 +97,7 @@ class C2SDFOExporter(BaseExporter):
             positive_labels: pd.DataFrame, 
             start_date: date, 
             end_date: date, 
-            negative_to_positive_ratio: int,
-            logger: logging.Logger
+            negative_to_positive_ratio: int
         ) -> pd.DataFrame:
         """
         This function locates `n` negatively labeled pixels within the class region and between provided start and end dates
@@ -110,6 +109,8 @@ class C2SDFOExporter(BaseExporter):
             - Negative pixels adjacent to positive pixels
             - Negative pixels not near positive pixels
         """
+        logger = logging.getLogger(__name__)
+
         c2sdfo = ee.ImageCollection(self.ee_im_coll)
 
         """Calculate the number of negative samples to take per image"""
@@ -358,7 +359,6 @@ class C2SDFOExporter(BaseExporter):
         """
 
         logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
 
         logger.info("Beginning export of Cloud-to-Street/DFO flood labels")
         logger.info("Finding positive labels")
@@ -370,7 +370,7 @@ class C2SDFOExporter(BaseExporter):
         logger.info(f"{positive_labels.groupby(['began', 'ended']).ngroups} floods occurred over this region during the study period.")
 
         logger.info("Finding negative labels")
-        negative_labels = self.find_negative_labels(positive_labels.copy(), start_date, end_date, negative_to_positive_ratio, logger)
+        negative_labels = self.find_negative_labels(positive_labels.copy(), start_date, end_date, negative_to_positive_ratio)
 
         logger.info("Negative labels found; they look like this:")
         logger.info(negative_labels.head())
