@@ -7,6 +7,7 @@ import logging
 
 from ..base import BaseExporter
 from src.utils.regions import combine_bounding_boxes, STR2BB, REGIONS
+from src.utils.sentinel import SENTINEL_1_BANDS, SENTINEL_1_START_DATE
 
 import ee
 import pandas as pd
@@ -14,8 +15,8 @@ import pandas as pd
 class BaseSentinel1Exporter(BaseExporter, ABC):
 
     ee_im_coll = 'COPERNICUS/S1_GRD'
-    BANDS = ['VV', 'VH']
-    min_date = date(2014, 10, 3)
+    BANDS = SENTINEL_1_BANDS
+    min_date = SENTINEL_1_START_DATE
 
     def __init__(self, data_folder: Path, region: Union[str, list[str]], combine_regions: bool=False) -> None:
         super().__init__(data_folder=data_folder)
