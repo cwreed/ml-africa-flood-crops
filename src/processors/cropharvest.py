@@ -1,9 +1,8 @@
-import os
 from pathlib import Path
 from typing import Union
 
 from .base import BaseProcessor
-from src.utils.regions import combine_bounding_boxes, STR2BB, REGIONS
+from src.utils.regions import _initialize_regions
 
 import numpy as np
 import pandas as pd
@@ -15,44 +14,15 @@ class CropHarvestProcessor(BaseProcessor):
 
     def __init__(self, data_folder: Path, region: Union[str, list[str]], combine_regions: bool=False):
         super().__init__(data_folder)
-
-        assert (
-            (
-                (type(region) is str) &
-                (
-                    (region in REGIONS.keys()) | 
-                    (region in STR2BB.keys())
-                )
-            ) |
-            (
-                (type(region) is list) & 
-                all(r in STR2BB.keys() for r in region)
-            )
-        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
         
-
-        self.region = region
-
-        if combine_regions:
-            self.region_type = 'single'
-            self.region_bbox = combine_bounding_boxes(region)
-        else:
-            if (type(region) is str) & (region in REGIONS.keys()):
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in REGIONS[region]]
-            elif (type(region) is str) & (region in STR2BB.keys()):
-                self.region_type = 'single'
-                self.region_bbox = STR2BB[region]
-            else:
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in region]
+        _initialize_regions(self, region=region, combine_regions=combine_regions)
     
     def load_raw_labels(self) -> gpd.GeoDataFrame:
 
-        label_file = os.path.join(self.raw_folder, "labels.geojson")
+        label_file = self.raw_folder / "labels.geojson"
 
         assert (
-            os.path.exists(label_file)
+            label_file.exists()
         ), f"Cannot find {label_file}. You must run `export_labels.py` before processing."
         
 
@@ -111,9 +81,4 @@ class CropHarvestProcessor(BaseProcessor):
             .to_xarray()
         )
 
-        if self.region_type == 'multiple':
-            region_name = "_".join(self.region).lower()
-        else:
-            region_name = self.region.lower()
-
-        output_xr.to_netcdf(os.path.join(self.output_folder, f'crop_labels_{region_name}.nc'))
+        output_xr.to_netcdf((self.output_folder / f'crop_labels_{self.region_name}.nc'))

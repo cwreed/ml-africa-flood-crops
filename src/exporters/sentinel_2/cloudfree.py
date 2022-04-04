@@ -103,7 +103,7 @@ def export(
         task = ee.batch.Export.image(
             image.clip(region),
             filename,
-            {"scale": 10, "region": region, "maxPixels": 1e13, "driveFolder": drive_folder}
+            {"scale": 10, "region": region, "maxPixels": 1e13, "driveFolder": drive_folder, "crs": 'EPSG:4326'}
         )
 
         try:

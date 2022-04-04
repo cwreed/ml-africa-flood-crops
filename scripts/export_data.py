@@ -1,9 +1,9 @@
 import sys
-import os
 import logging
 import argparse
 from pathlib import Path
 from typing import Union
+
 import ee
 
 sys.path.append("..")
@@ -20,10 +20,7 @@ from src.exporters import (
     REGIONS
 )
 
-data_dir = os.path.join(
-    Path(__file__).resolve().parents[1],
-    'data'
-)
+data_dir = Path(__file__).resolve().parents[1] / 'data'
 
 def export_cropharvest_sentinel2(region: Union[str, list[str]], combine_regions: bool=False) -> None:
     sentinel_2_exporter = CropHarvestSentinel2Exporter(

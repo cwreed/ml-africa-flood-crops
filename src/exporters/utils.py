@@ -1,9 +1,9 @@
-import ee
+from typing import Union, Optional
 from math import cos, radians
 
-from src.utils.regions import BoundingBox
-from typing import Union, Optional
+from src.utils.regions import BoundingBox, STR2BB, REGIONS, combine_bounding_boxes
 
+import ee
 
 class EEBoundingBox(BoundingBox):
     """A BoundingBox with additional Earth Engine functions"""
@@ -85,3 +85,46 @@ def bounding_boxes_to_polygon(ee_bboxes: list[EEBoundingBox]) -> ee.Geometry.Mul
     ee_polygons = [bbox.to_ee_polygon() for bbox in ee_bboxes]
 
     return ee.Geometry.MultiPolygon(ee_polygons).dissolve().simplify(maxError=1)
+
+
+def _initialize_ee_regions(class_object, region: Union[str, list[str]], combine_regions: bool=False):
+    """Helper function to help initialize region attributes across many classes"""
+    assert (
+            (
+                (isinstance(region, str)) &
+                (
+                    (region in REGIONS.keys()) | 
+                    (region in STR2BB.keys())
+                )
+            ) |
+            (
+                (isinstance(region, list)) & 
+                all(r in STR2BB.keys() for r in region)
+            )
+        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
+    
+
+    class_object.region = region
+
+    if combine_regions:
+        class_object.region_type = 'single'
+        class_object.region_bbox = combine_bounding_boxes(region)
+        class_object.ee_region_geo = EEBoundingBox(class_object.region_bbox).to_ee_polygon()
+    else:
+        if (isinstance(region, str)) & (region in REGIONS.keys()):
+            class_object.region_type = 'multiple'
+            class_object.region_bbox = [STR2BB[r] for r in REGIONS[region]]
+            class_object.ee_region_geo = bounding_boxes_to_polygon([EEBoundingBox(region) for region in class_object.region_bbox])
+        elif (isinstance(region, str)) & (region in STR2BB.keys()):
+            class_object.region_type = 'single'
+            class_object.region_bbox = STR2BB[region]
+            class_object.ee_region_geo = EEBoundingBox(class_object.region_bbox).to_ee_polygon()
+        else:
+            class_object.region_type = 'multiple'
+            class_object.region_bbox = [STR2BB[r] for r in region]
+            class_object.ee_region_geo = bounding_boxes_to_polygon([EEBoundingBox(region) for region in class_object.region_bbox])
+    
+    if class_object.region_type == 'multiple':
+        class_object.region_name = "_".join(class_object.region).lower()
+    else:
+        class_object.region_name = class_object.region.lower()

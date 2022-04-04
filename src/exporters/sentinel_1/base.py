@@ -1,4 +1,3 @@
-import os 
 from pathlib import Path
 from typing import Union
 from abc import ABC, abstractmethod
@@ -6,7 +5,7 @@ from datetime import date, datetime
 import logging
 
 from ..base import BaseExporter
-from src.utils.regions import combine_bounding_boxes, STR2BB, REGIONS
+from src.utils.regions import _initialize_regions
 from src.utils.sentinel import SENTINEL_1_BANDS, SENTINEL_1_START_DATE
 
 import ee
@@ -20,42 +19,8 @@ class BaseSentinel1Exporter(BaseExporter, ABC):
 
     def __init__(self, data_folder: Path, region: Union[str, list[str]], combine_regions: bool=False) -> None:
         super().__init__(data_folder=data_folder)
-
-        assert (
-            (
-                (isinstance(region, str)) &
-                (
-                    (region in REGIONS.keys()) | 
-                    (region in STR2BB.keys())
-                )
-            ) |
-            (
-                (isinstance(region, list)) & 
-                all(r in STR2BB.keys() for r in region)
-            )
-        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
         
-
-        self.region = region
-
-        if combine_regions:
-            self.region_type = 'single'
-            self.region_bbox = combine_bounding_boxes(region)
-        else:
-            if (type(region) is str) & (region in REGIONS.keys()):
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in REGIONS[region]]
-            elif (type(region) is str) & (region in STR2BB.keys()):
-                self.region_type = 'single'
-                self.region_bbox = STR2BB[region]
-            else:
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in region]
-        
-        if self.region_type == 'multiple':
-            self.region_name = "_".join(self.region).lower()
-        else:
-            self.region_name = self.region.lower()
+        _initialize_regions(self, region=region, combine_regions=combine_regions)
 
         self.labels = self.load_labels()
 
@@ -85,7 +50,7 @@ class BaseSentinel1Exporter(BaseExporter, ABC):
 
         filename = f"{polygon_identifier}_{datetime.strftime(start_date, '%Y%m%d')}_{datetime.strftime(end_date, '%Y%m%d')}"
 
-        if checkpoint and os.path.exists(os.path.join(self.output_folder, f"{filename}.tif")):
+        if checkpoint and (self.output_folder / f"{filename}.tif").exists():
             logger.info(f"{filename} already exists--skipping")
             return None
         
@@ -132,7 +97,7 @@ class BaseSentinel1Exporter(BaseExporter, ABC):
         task = ee.batch.Export.image(
             image.clip(region),
             filename,
-            {"scale": 10, "region": region, "maxPixels": 1e13, "driveFolder": drive_folder}
+            {"scale": 10, "region": region, "maxPixels": 1e13, "driveFolder": drive_folder, "crs": 'EPSG:4326'}
         )
 
         try:

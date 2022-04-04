@@ -1,12 +1,10 @@
-import os
 from pathlib import Path
 from typing import Union
 from datetime import date
 import logging
 
-from .utils import EEBoundingBox, bounding_box_from_center, bounding_boxes_to_polygon
+from .utils import bounding_box_from_center, bounding_boxes_to_polygon, _initialize_ee_regions
 from .base import BaseExporter
-from src.utils.regions import combine_bounding_boxes, STR2BB, REGIONS
 
 import ee
 import pandas as pd
@@ -21,40 +19,7 @@ class C2SDFOExporter(BaseExporter):
     def __init__(self, data_folder: Path, region: Union[str, list[str]], combine_regions: bool=False):
         super().__init__(data_folder=data_folder)
 
-        assert (
-            (
-                (isinstance(region, str)) &
-                (
-                    (region in REGIONS.keys()) | 
-                    (region in STR2BB.keys())
-                )
-            ) |
-            (
-                (isinstance(region, list)) & 
-                all(r in STR2BB.keys() for r in region)
-            )
-        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
-        
-
-        self.region = region
-
-        if combine_regions:
-            self.region_type = 'single'
-            self.region_bbox = combine_bounding_boxes(region)
-            self.ee_region_geo = EEBoundingBox(self.region_bbox).to_ee_polygon()
-        else:
-            if (isinstance(region, str)) & (region in REGIONS.keys()):
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in REGIONS[region]]
-                self.ee_region_geo = bounding_boxes_to_polygon([EEBoundingBox(region) for region in self.region_bbox])
-            elif (isinstance(region, str)) & (region in STR2BB.keys()):
-                self.region_type = 'single'
-                self.region_bbox = STR2BB[region]
-                self.ee_region_geo = EEBoundingBox(self.region_bbox).to_ee_polygon()
-            else:
-                self.region_type = 'multiple'
-                self.region_bbox = [STR2BB[r] for r in region]
-                self.ee_region_geo = bounding_boxes_to_polygon([EEBoundingBox(region) for region in self.region_bbox])
+        _initialize_ee_regions(self, region=region, combine_regions=combine_regions)
 
         self.random_seed = np.random.default_rng(2022)
         
@@ -377,15 +342,7 @@ class C2SDFOExporter(BaseExporter):
 
         flood_labels = pd.concat([positive_labels, negative_labels], axis = 0)
 
-        if self.region_type == 'multiple':
-            region_name = "_".join(self.region).lower()
-        else:
-            region_name = self.region.lower()
-
-        outpath = os.path.join(
-            self.output_folder, 
-            f"flood_labels_{region_name}.csv"
-        )
+        outpath = self.output_folder / f"flood_labels_{self.region_name}.csv"
 
         logger.info(f"Writing flood labels to {outpath}")
         flood_labels.to_csv(outpath, index=False)

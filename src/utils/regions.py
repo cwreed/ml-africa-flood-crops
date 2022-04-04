@@ -44,6 +44,44 @@ def combine_bounding_boxes(names: Union[str, list[str]]) -> BoundingBox:
         max_lat = max_lat
     )
 
+def _initialize_regions(class_object, region: Union[str, list[str]], combine_regions: bool=False):
+    """Helper function to help initialize region attributes across many classes"""
+    assert (
+            (
+                (isinstance(region, str)) &
+                (
+                    (region in REGIONS.keys()) | 
+                    (region in STR2BB.keys())
+                )
+            ) |
+            (
+                (isinstance(region, list)) & 
+                all(r in STR2BB.keys() for r in region)
+            )
+        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
+    
+
+    class_object.region = region
+
+    if combine_regions:
+        class_object.region_type = 'single'
+        class_object.region_bbox = combine_bounding_boxes(region)
+    else:
+        if (isinstance(region, str)) & (region in REGIONS.keys()):
+            class_object.region_type = 'multiple'
+            class_object.region_bbox = [STR2BB[r] for r in REGIONS[region]]
+        elif (isinstance(region, str)) & (region in STR2BB.keys()):
+            class_object.region_type = 'single'
+            class_object.region_bbox = STR2BB[region]
+        else:
+            class_object.region_type = 'multiple'
+            class_object.region_bbox = [STR2BB[r] for r in region]
+    
+    if class_object.region_type == 'multiple':
+        class_object.region_name = "_".join(class_object.region).lower()
+    else:
+        class_object.region_name = class_object.region.lower()
+
 
 """The following lon/lat values were taken from https://github.com/azurro/country-bounding-boxes"""
 STR2BB ={

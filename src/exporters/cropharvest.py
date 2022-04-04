@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 import logging
 from .base import BaseExporter
 from cropharvest.datasets import CropHarvestLabels
@@ -20,9 +18,9 @@ class CropHarvestExporter(BaseExporter):
         logger.setLevel(logging.INFO)
 
         logger.info("Beginning export of NASA CropHarvest cropland labels")
-        outpath = os.path.join(self.output_folder, 'labels.geojson')
+        outpath = self.output_folder / 'labels.geojson'
         
-        if os.path.exists(outpath):
+        if outpath.exists():
             logger.info(f"Data already exported and available at {outpath}")
             CropHarvestLabels(self.output_folder, download=False)
         else:

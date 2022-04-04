@@ -1,10 +1,8 @@
 import sys
-import os
 import logging
 import argparse
 from pathlib import Path
 from typing import Union
-from datetime import date, datetime
 
 sys.path.append("..")
 
@@ -15,10 +13,7 @@ from src.processors import (
     REGIONS
 )
 
-data_dir = os.path.join(
-    Path(__file__).resolve().parents[1],
-    'data'
-)
+data_dir = Path(__file__).resolve().parents[1] / 'data'
 
 def process_cropharvest(
         region: Union[str, list[str]],
@@ -39,7 +34,7 @@ def process_c2sdfo(
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Data export script")
+    parser = argparse.ArgumentParser(description="Label processor script")
     parser.add_argument("--region", help=f"One of {REGIONS.keys()} or one or more of {STR2BB.keys()}. Should match what was passed to `export_labels.py`.")
     parser.add_argument("--combine_regions", type=bool, default=False, help="Whether or not to combine regions into one. Should match what was passed to `export_labels.py`.")
 

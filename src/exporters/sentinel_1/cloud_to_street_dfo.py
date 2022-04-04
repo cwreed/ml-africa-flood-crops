@@ -1,11 +1,9 @@
-import os
 from datetime import timedelta
 
 from .base import BaseSentinel1Exporter
 from ..cloud_to_street_dfo import C2SDFOExporter
 from ..utils import EEBoundingBox, bounding_box_from_center
 
-import ee
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -15,15 +13,15 @@ class C2SDFOSentinel1Exporter(BaseSentinel1Exporter):
     dataset = 'cloud-to-street-dfo-sentinel-1'
 
     def load_labels(self) -> pd.DataFrame:
-        label_file = os.path.join(
-            self.data_folder,
-            "processed",
-            C2SDFOExporter.dataset,
+        label_file = (
+            self.data_folder /
+            "processed" /
+            C2SDFOExporter.dataset /
             f"flood_labels_{self.region_name}.nc"
         )
 
         assert (
-            os.path.exists(label_file)
+            label_file.exists()
         ), f"process_labels.py must be run in order to read in {label_file}"
 
         return xr.open_dataset(label_file).to_dataframe().dropna().reset_index()
@@ -61,7 +59,7 @@ class C2SDFOSentinel1Exporter(BaseSentinel1Exporter):
         assert (
             min_date >= np.datetime64(self.min_date)
         ), (
-            f"Sentinel-2 data is not available prior to {self.min_date}\n"
+            f"Sentinel-1 data is not available prior to {self.min_date}\n"
             f"Unable to acquire {n_timesteps} timesteps of data for {n_with_timestamp_deficit} samples in labels set.\n"
             f"Consider updating label dates or setting `override_label_dates` arg to True."
         )

@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 
 from .base import BaseSentinel2Exporter
@@ -16,15 +15,15 @@ class CropHarvestSentinel2Exporter(BaseSentinel2Exporter):
 
     def load_labels(self) -> pd.DataFrame:
 
-        label_file = os.path.join(
-            self.data_folder, 
-            'processed', 
-            CropHarvestExporter.dataset,
+        label_file = (
+            self.data_folder /
+            'processed' /
+            CropHarvestExporter.dataset /
             f'crop_labels_{self.region_name}.nc'
         )
 
         assert (
-            os.path.exists(label_file)
+            label_file.exists()
         ), f"process_labels.py must be run in order to read in {label_file}"
 
         return xr.open_dataset(label_file).to_dataframe().dropna().reset_index()
