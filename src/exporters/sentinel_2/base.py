@@ -56,7 +56,7 @@ class BaseSentinel2Exporter(BaseExporter, ABC):
 
         filename = f"{polygon_identifier}_{datetime.strftime(start_date, '%Y%m%d')}_{datetime.strftime(end_date, '%Y%m%d')}"
 
-        if checkpoint and (self.output_folder, f"{filename}.tif").exists():
+        if checkpoint and (self.output_folder / f"{filename}.tif").exists():
             logger.info(f"{filename}.tif already exists--skipping")
             return None
 

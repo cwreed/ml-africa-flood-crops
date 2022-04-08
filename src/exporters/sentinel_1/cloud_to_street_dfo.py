@@ -39,18 +39,19 @@ class C2SDFOSentinel1Exporter(BaseSentinel1Exporter):
     def export_for_labels(
         self,
         days_per_timestep: int=12,
-        n_timesteps: int=4,
-        surrounding_meters: int = 80,
-        checkpoint: bool = True,
-        monitor: bool = False
+        n_timesteps: int=6,
+        surrounding_meters: int=80,
+        checkpoint: bool=True,
+        monitor: bool=False
     ) -> None:
         """Exports Sentinel-1 data for labels in self.labels"""
 
-        flood_end_dates = pd.to_datetime(self.labels.ended)
         flood_start_dates = pd.to_datetime(self.labels.began)
+        flood_end_dates = pd.to_datetime(self.labels.ended)
 
+        """Pull data from both before the start of flood and after the end of the flood"""
         input_start_dates = flood_start_dates - timedelta(days = days_per_timestep * n_timesteps)
-
+        input_end_dates = flood_end_dates + timedelta(days = days_per_timestep * (n_timesteps - 1))
 
         """Figure out whether there is Sentinel-1 data to pull for dates"""
         min_date = np.min(input_start_dates)
@@ -71,7 +72,7 @@ class C2SDFOSentinel1Exporter(BaseSentinel1Exporter):
                 polygon=bbox.to_ee_polygon(),
                 polygon_identifier=i,
                 start_date=input_start_dates[i],
-                end_date=flood_end_dates[i],
+                end_date=input_end_dates[i],
                 checkpoint=checkpoint,
                 monitor=monitor
             )

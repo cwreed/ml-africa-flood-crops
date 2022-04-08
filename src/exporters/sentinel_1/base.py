@@ -9,6 +9,7 @@ from src.utils.regions import _initialize_regions
 from src.utils.sentinel import SENTINEL_1_BANDS, SENTINEL_1_START_DATE
 
 import ee
+import numpy as np
 import pandas as pd
 
 class BaseSentinel1Exporter(BaseExporter, ABC):
@@ -47,18 +48,28 @@ class BaseSentinel1Exporter(BaseExporter, ABC):
             f"Exporting image for polygon {polygon_identifier} from "
             f"aggregated images between {datetime.strftime(start_date, '%Y-%m-%d')} and {datetime.strftime(end_date, '%Y-%m-%d')}."
         )
-
-        filename = f"{polygon_identifier}_{datetime.strftime(start_date, '%Y%m%d')}_{datetime.strftime(end_date, '%Y%m%d')}"
-
-        if checkpoint and (self.output_folder / f"{filename}.tif").exists():
-            logger.info(f"{filename} already exists--skipping")
-            return None
         
         imcoll = (
             ee.ImageCollection(self.ee_im_coll)
             .filterBounds(polygon)
             .filterDate(ee.Date(start_date), ee.Date(end_date))
         )
+
+        """Get new start and end dates based on actual image dates"""
+        imcoll_times = imcoll.aggregate_array('system:time_start').getInfo()
+        image_start_date = datetime.utcfromtimestamp(np.min(imcoll_times) / 1000)
+        image_end_date = datetime.utcfromtimestamp(np.max(imcoll_times) / 1000)
+
+        # logger.info(
+        #     f"The Sentinel-1 imagery for this date range starts on {datetime.strftime(image_start_date, '%Y-%m-%d')} "
+        #     f"and ends on {datetime.strftime(image_end_date, '%Y-%m-%d')}."
+        # )
+
+        filename = f"{polygon_identifier}_{datetime.strftime(image_start_date, '%Y%m%d')}_{datetime.strftime(image_end_date, '%Y%m%d')}"
+
+        if checkpoint and (self.output_folder / f"{filename}.tif").exists():
+            logger.info(f"{filename} already exists--skipping")
+            return None
 
         """Combine images into a single image"""
         img = ee.Image(imcoll.iterate(self.combine_bands))
