@@ -1,7 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
-from datetime import date, datetime
+from datetime import date
 import logging
 
 from src.exporters import CropHarvestExporter, CropHarvestSentinel2Exporter
@@ -21,6 +21,7 @@ class CropHarvestEngineer(BaseEngineer):
 
     sentinel_dataset = CropHarvestSentinel2Exporter.dataset
     dataset = CropHarvestExporter.dataset
+    label_str = 'is_crop'
     
     def read_labels(self, data_folder: Path) -> pd.DataFrame:
         cropharvest = data_folder / 'processed' / CropHarvestExporter.dataset / f"crop_labels_{self.region_name}.nc"
@@ -30,9 +31,9 @@ class CropHarvestEngineer(BaseEngineer):
     def process_single_file(
         self,
         filepath: Path,
+        label_id: int,
         nan_fill: float,
         max_nan_ratio: float,
-        add_ndvi: bool,
         calculate_normalizing_dict: bool,
         start_date: date,
         days_per_timestep: int,
@@ -41,8 +42,13 @@ class CropHarvestEngineer(BaseEngineer):
 
         logger = logging.getLogger(__name__)
 
+        crop_label = int(self.labels.loc[label_id, self.label_str])
+
         da = self.load_tif(
-            filepath=filepath, days_per_timestep=days_per_timestep, start_date=start_date
+            filepath=filepath, 
+            days_per_timestep=days_per_timestep, 
+            start_date=start_date, 
+            n_timesteps_per_instance=None
         )
 
         min_lon, min_lat = float(da.x.min()), float(da.y.min())
@@ -65,26 +71,27 @@ class CropHarvestEngineer(BaseEngineer):
         closest_lon = self.find_nearest(da.x, label_lon)
         closest_lat = self.find_nearest(da.y, label_lat)
 
-        labeled_np = da.sel(x=closest_lon).sel(y=closest_lat).values
+        labeled_np = da.sel(x=closest_lon).sel(y=closest_lat).to_array().values[0]
 
         neighbor_lat, neighbor_lon = self.randomly_select_lat_lon(
             lat=da.y, lon=da.x, label_lat=label_lat, label_lon=label_lon
         )
 
-        neighbor_np = da.sel(x=neighbor_lon).sel(y=neighbor_lat)
+        neighbor_np = da.sel(x=neighbor_lon).sel(y=neighbor_lat).to_array().values[0]
 
-        if add_ndvi:
-            labeled_np = self.calculate_ndvi(labeled_np)
-            neighbor_np = self.calculate_ndvi(neighbor_np)
+        """Calculate NDVI"""        
+        labeled_np = self.calculate_ndvi(labeled_np)
+        neighbor_np = self.calculate_ndvi(neighbor_np)
 
-        labeled_array = self.fill_nan(labeled_np, nan_fill=nan_fill, max_ratio=max_nan_ratio)
-        neighboring_array = self.fill_nan(neighbor_np, nan_fill=nan_fill)
+        labeled_array = self.fill_nan(array=labeled_np, nan_fill=nan_fill, max_ratio=max_nan_ratio)
+        neighboring_array = self.fill_nan(array=neighbor_np, nan_fill=nan_fill)
 
-        if (not is_test) & calculate_normalizing_dict:
+        if (labeled_array is not None) & (not is_test) & calculate_normalizing_dict:
             self.update_normalizing_values(labeled_array)
         
         if labeled_array is not None:
             return CropHarvestDataInstance(
+                crop_label=crop_label,
                 label_lat=label_lat,
                 label_lon=label_lon,
                 instance_lat=closest_lat,
@@ -93,5 +100,5 @@ class CropHarvestEngineer(BaseEngineer):
                 neighboring_array=neighboring_array
             )
         else:
-            logger.info("Too many NaN values--skipping")
+            logger.error("Too many NaN values--skipping")
             return None

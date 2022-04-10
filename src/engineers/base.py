@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -53,7 +52,7 @@ class BaseEngineer(ABC):
 
         self.data_folder = data_folder
         self.savedir = self.data_folder / 'features' / self.dataset
-        self.savedir.mkdir(exists_ok=True, parents=True)
+        self.savedir.mkdir(exist_ok=True, parents=True)
 
         self.geospatial_files = self.get_geospatial_files(data_folder)
         self.labels = self.read_labels(data_folder)
@@ -117,11 +116,24 @@ class BaseEngineer(ABC):
         self,
         filepath: Path,
         start_date: datetime,
-        days_per_timestep: int
-    ) -> xr.DataArray:
+        days_per_timestep: int,
+        sliding_window: bool=False,
+        n_timesteps_per_instance: Optional[int]=None
+    ) -> Union[xr.DataArray, list[xr.DataArray]]:
+        """
+        Loads in the raw Sentinel data
         
+        Args:
+            - filepath: path to the TIF file
+            - start_date: first date represented in the TIF file
+            - days_per_timestep: number of days between observations in TIF file
+            - sliding_window: whether or not to segment the TIF into multiple arrays that 
+                              act as a sliding window over the time span of the data
+            - n_timesteps_per_instance: width of the sliding window in terms of timesteps
+                                        only used if sliding_window = True
+        """
         scaling_factor = 10000 if 'sentinel-2' in self.sentinel_dataset else 1
-        
+
         da = xr.open_dataset(filepath, engine='rasterio').rename({'band_data': 'FEATURES'}) / scaling_factor
 
         da_split_by_time: list[xr.DataArray] = []
@@ -139,21 +151,52 @@ class BaseEngineer(ABC):
                 band=slice(cur_band, cur_band+bands_per_timestep)
             )
 
-            da_split_by_time.append(time_specific_da)
+            da_split_by_time.append(time_specific_da.assign_coords({'band': np.arange(bands_per_timestep)}))
             cur_band += bands_per_timestep
         
-        timesteps = [
-            start_date + timedelta(days=days_per_timestep) * i
-            for i in range(len(da_split_by_time))
-        ]
+        if sliding_window:
 
-        combined = xr.concat(da_split_by_time, pd.Index(timesteps, name='time'))
-        combined.attrs['band_descriptions'] = self.BANDS
+            """Combine DataArrays across time using a sliding window of width `n_timesteps_per_instance`"""
 
-        return combined
+            da_split_by_windows: list[xr.DataArray] = []
+            da_index = 0
+
+            while da_index + n_timesteps_per_instance <= len(da_split_by_time):
+                timesteps = [
+                    start_date + timedelta(days=days_per_timestep) * i
+                    for i in range(da_index, da_index + n_timesteps_per_instance)
+                ]
+
+                combined = xr.concat(
+                        da_split_by_time[da_index:(da_index+n_timesteps_per_instance)],
+                        pd.Index(timesteps, name='time')
+                )
+                combined.attrs['band_descriptions'] = self.BANDS
+
+                da_split_by_windows.append(combined)
+                da_index += 1
+            
+            return da_split_by_windows
+
+        else:
+
+            """Combine all DataArrays across time"""
+
+            timesteps = [
+                start_date + timedelta(days=days_per_timestep) * i
+                for i in range(len(da_split_by_time))
+            ]
+
+            combined = xr.concat(da_split_by_time, pd.Index(timesteps, name='time'))
+            combined.attrs['band_descriptions'] = self.BANDS
+
+            return combined
 
     def update_normalizing_values(self, array: np.ndarray) -> None:
-        
+        """
+        Updates the values in self.normalizing_dict_interim using
+        a runnning calculation.
+        """
         num_bands = array.shape[1]
 
         if "mean" not in self.normalizing_dict_interim:
@@ -173,7 +216,11 @@ class BaseEngineer(ABC):
             )
 
     def calculate_normalizing_dict(self) -> Optional[dict[str, np.ndarray]]:
-        
+        """
+        Uses the values in self.normalizing_dict_interim to calculate
+        the running mean and standard deviation of the data. The dictionary returned
+        can be used to normalize the data in the engineered files.
+        """
         logger = logging.getLogger(__name__)
 
         if "mean" not in self.normalizing_dict_interim:
@@ -190,15 +237,14 @@ class BaseEngineer(ABC):
 
         return {'mean': self.normalizing_dict_interim['mean'], 'std': std}
 
-    def fill_nan(array: np.ndarray, nan_fill: float, max_ratio: Optional[float] = None) -> Optional[np.ndarray]:
+    @staticmethod
+    def fill_nan(array: np.ndarray, nan_fill: float, max_ratio: Optional[float]=None) -> Optional[np.ndarray]:
         logger = logging.getLogger(__name__)
-
-        logger.info("Filling NaN values in data array")
 
         if max_ratio is not None:
             n_nan = np.count_nonzero(np.isnan(array))
             if (n_nan / array.size) > max_ratio:
-                logger.debug("Number of NaN values exceeds quota set by `max_ratio`, returning None")
+                logger.error("Number of NaN values exceeds quota set by `max_ratio`, returning None")
                 return None
         
         return np.nan_to_num(array, nan=nan_fill)
@@ -208,7 +254,7 @@ class BaseEngineer(ABC):
         raise NotImplementedError
     
     def calculate_ndvi(self, input_array: np.ndarray, n_dims: int=2) -> np.ndarray:
-
+        """Calculates and adds NDVI as a band to the given input array"""
         assert (
             'sentinel-2' in self.sentinel_dataset
         ), f"Can only calculate NDVI for Sentinel-2 datasets: current dataset is {self.sentinel_dataset}"
@@ -224,7 +270,7 @@ class BaseEngineer(ABC):
         
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                'ignore', message='invalude encountered in true_divide'
+                'ignore', message='invalid value encountered in true_divide'
             )
 
             ndvi = np.where(
@@ -239,12 +285,13 @@ class BaseEngineer(ABC):
         self,
         val_set_size: float=0.1,
         test_set_size: float=0.2,
-        nan_fill: float=0.,
+        nan_fill: float=0.0,
         max_nan_ratio: float=0.3,
         checkpoint: bool=True,
-        add_ndvi: bool=True,
         calculate_normalizing_dict: bool=True,
-        days_per_timestep: int=30
+        days_per_timestep: int=30,
+        sliding_window: bool=False,
+        n_timesteps_per_instance: Optional[int]=None,
     ) -> None:
         """
         Engineer the exported/processed Earth Engine data and labels into 
@@ -252,10 +299,11 @@ class BaseEngineer(ABC):
         """
         logger = logging.getLogger(__name__)
 
+        logger.info(f"Engineering files for {self.sentinel_dataset} data:")
         for filepath in tqdm(self.geospatial_files):
             identifier, start_date, end_date = self.process_filename(filepath.name)
 
-            filename = f"{identifier}_{datetime.strptime(start_date, '%Y%m%d')}_{datetime.strptime(end_date, '%Y%m%d')}"
+            filename = f"{identifier}_{datetime.strftime(start_date, '%Y%m%d')}_{datetime.strftime(end_date, '%Y%m%d')}"
 
             if checkpoint:
                 """Check to see if files have already been written"""
@@ -280,31 +328,33 @@ class BaseEngineer(ABC):
             
             instance = self.process_single_file(
                 filepath,
+                label_id=identifier,
                 nan_fill=nan_fill,
                 max_nan_ratio=max_nan_ratio,
-                add_ndvi=add_ndvi,
-                calculated_normalizing_dict=calculate_normalizing_dict,
+                calculate_normalizing_dict=calculate_normalizing_dict,
                 start_date=start_date,
                 days_per_timestep=days_per_timestep,
+                sliding_window=sliding_window,
+                n_timesteps_per_instance=n_timesteps_per_instance,
                 is_test=True if data_subset == 'test' else False
             )
 
             if instance is not None:
                 subset_path = self.savedir / data_subset
-                subset_path.mkdir(exists_ok=True)
+                subset_path.mkdir(exist_ok=True)
                 save_path = subset_path / f"{filename}.pkl"
                 with save_path.open('wb') as f:
                     pickle.dump(instance, f)
             
-            if calculate_normalizing_dict:
-                normalizing_dict = self.calculate_normalizing_dict()
+        if calculate_normalizing_dict:
+            normalizing_dict = self.calculate_normalizing_dict()
 
-                if normalizing_dict is not None:
-                    save_path = self.savedir / 'normalizing_dict.pkl'
-                    with save_path.open('wb') as f:
-                        pickle.dump(normalizing_dict, f)
-                else:
-                    logger.debug("No normalizing dict calculated!")
+            if normalizing_dict is not None:
+                save_path = self.savedir / 'normalizing_dict.pkl'
+                with save_path.open('wb') as f:
+                    pickle.dump(normalizing_dict, f)
+            else:
+                logger.debug("No normalizing dict calculated!")
                   
 
 
