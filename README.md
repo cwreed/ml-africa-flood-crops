@@ -1,0 +1,3 @@
+This repo is the body of my work for an independent study at NYU CDS using Google Earth Engine and deep learning to classify floods on crop lands. It is structured to emulate the analysis pipelines endorsed by researchers at NASA Harvest to ensure modularity and reproducibility, and further to develop some of my practices in good software engineering.
+
+So far I've built out the code to export, process, and engineer datasets for training two models: one to classify cropland in sub-Saharan Africa and one to classify floods. I intend to combine their predictions later to create a new dataset to experiment with spatial time series models for predicting crop stress in response to floods.
