@@ -38,8 +38,9 @@ class BaseEngineer(ABC):
     Combines satellite imagery data from Sentinel 1 or 2 with their associated labels
     into numpy arrays for machine learning.
 
-    Almost all functions are replicated from 
+    Almost all functions are inspired by 
     https://github.com/nasaharvest/togo-crop-mask/blob/master/src/engineer/base.py
+    with modifications
 
 
     """
@@ -300,6 +301,10 @@ class BaseEngineer(ABC):
         logger = logging.getLogger(__name__)
 
         logger.info(f"Engineering files for {self.sentinel_dataset} data:")
+
+        if sliding_window:
+            instance_lookup = []
+        
         for filepath in tqdm(self.geospatial_files):
             identifier, start_date, end_date = self.process_filename(filepath.name)
 
@@ -342,9 +347,24 @@ class BaseEngineer(ABC):
             if instance is not None:
                 subset_path = self.savedir / data_subset
                 subset_path.mkdir(exist_ok=True)
+                if isinstance(instance, list):
+                    for i, _ in enumerate(instance):
+                        instance_lookup.append((data_subset, filename, i))
                 save_path = subset_path / f"{filename}.pkl"
                 with save_path.open('wb') as f:
                     pickle.dump(instance, f)
+
+        if sliding_window:
+            lookup_splits = [
+                [(b,c) for a,b,c in instance_lookup if a == 'train'],
+                [(b,c) for a,b,c in instance_lookup if a == 'validation'],
+                [(b,c) for a,b,c in instance_lookup if a == 'test']
+            ]
+
+            for i, subset in enumerate(['train', 'validation', 'test']):
+                lookup_path = self.savedir / subset / 'lookup.ref'
+                with lookup_path.open('wb') as f:
+                    pickle.dump(lookup_splits[i], f)
             
         if calculate_normalizing_dict:
             normalizing_dict = self.calculate_normalizing_dict()
