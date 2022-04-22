@@ -37,7 +37,9 @@ class CropHarvestEngineer(BaseEngineer):
         calculate_normalizing_dict: bool,
         start_date: date,
         days_per_timestep: int,
-        is_test: bool
+        is_test: bool,
+        sliding_window: bool=False,
+        n_timesteps_per_instance: Optional[int]=None
     ) -> Optional[CropHarvestDataInstance]:
 
         logger = logging.getLogger(__name__)
