@@ -12,6 +12,11 @@ from . import cloudfree
 import ee
 import pandas as pd
 
+try:
+    ee.Initialize()
+except ee.ee_exception.EEException:
+    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
+
 class BaseSentinel2Exporter(BaseExporter, ABC):
 
     ee_im_coll = 'COPERNICUS/S2_SR'

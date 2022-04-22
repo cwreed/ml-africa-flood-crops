@@ -12,6 +12,11 @@ import ee
 import numpy as np
 import pandas as pd
 
+try:
+    ee.Initialize()
+except ee.ee_exception.EEException:
+    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
+
 class BaseSentinel1Exporter(BaseExporter, ABC):
 
     ee_im_coll = 'COPERNICUS/S1_GRD'

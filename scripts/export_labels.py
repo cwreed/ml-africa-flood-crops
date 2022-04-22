@@ -5,14 +5,8 @@ import argparse
 from pathlib import Path
 from typing import Union
 from datetime import date, datetime
-import ee
 
 sys.path.append("..")
-
-try:
-    ee.Initialize()
-except ee.ee_exception.EEException:
-    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
 
 from src.exporters import (
     CropHarvestExporter,

@@ -10,6 +10,10 @@ import ee
 import pandas as pd
 import numpy as np
 
+try:
+    ee.Initialize()
+except ee.ee_exception.EEException:
+    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
 
 class C2SDFOExporter(BaseExporter):
 

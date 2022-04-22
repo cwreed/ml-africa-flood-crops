@@ -102,7 +102,6 @@ def _initialize_ee_regions(class_object, region: Union[str, list[str]], combine_
                 all(r in STR2BB.keys() for r in region)
             )
         ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
-    
 
     class_object.region = region
 

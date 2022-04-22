@@ -4,14 +4,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
-import ee
-
 sys.path.append('..')
-
-try:
-    ee.Initialize()
-except ee.ee_exception.EEException:
-    print("Need to authenticate Earth Engine account: run `earthengine authenticate` from command line.")
 
 from src.utils.regions import STR2BB, REGIONS
 from src.engineers import (
