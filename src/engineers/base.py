@@ -347,14 +347,18 @@ class BaseEngineer(ABC):
             if instance is not None:
                 subset_path = self.savedir / data_subset
                 subset_path.mkdir(exist_ok=True)
+
                 if isinstance(instance, list):
                     for i, _ in enumerate(instance):
                         instance_lookup.append((data_subset, filename, i))
+
                 save_path = subset_path / f"{filename}.pkl"
                 with save_path.open('wb') as f:
                     pickle.dump(instance, f)
 
         if sliding_window:
+            logger.info("All data has been pickled--computing lookup arrays")
+            
             lookup_splits = [
                 [(b,c) for a,b,c in instance_lookup if a == 'train'],
                 [(b,c) for a,b,c in instance_lookup if a == 'validation'],
@@ -362,6 +366,7 @@ class BaseEngineer(ABC):
             ]
 
             for i, subset in enumerate(['train', 'validation', 'test']):
+                assert lookup_splits[i] is not None
                 lookup_path = self.savedir / subset / 'lookup.ref'
                 with lookup_path.open('wb') as f:
                     pickle.dump(lookup_splits[i], f)
