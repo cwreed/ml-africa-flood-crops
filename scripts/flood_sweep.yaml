@@ -1,0 +1,46 @@
+program: train_model.py
+name: flood_mapper_sweep
+project: ml-africa-flood-crops
+method: bayes
+metric:
+  name: validation_flood_present_auc
+  goal: maximize
+parameters:
+  run_name:
+    values: ['flood_hparam_search']
+  model_type:
+    values: ['flood']
+  num_lstm_layers:
+    min: 1
+    max: 3
+    distribution: int_uniform
+  hidden_size:
+    values: [64, 128, 256, 512, 1024]
+  lstm_dropout:
+    min: 0.0
+    max: 0.15
+    distribution: uniform
+  num_classification_layers:
+    min: 1
+    max: 3
+    distribution: int_uniform
+  classifier_hidden_size:
+    values: [128, 256, 512, 1024]
+  optimizer:
+    values: ['adam', 'sgd']
+  learning_rate:
+    min: 0.0001
+    max: 0.01
+    distribution: uniform
+  weight_decay:
+    min: 0.00001
+    max: 0.0001
+    distribution: uniform
+  momentum:
+    min: 0.9
+    max: 0.99
+    distribution: uniform
+  alpha:
+    min: 0
+    max: 1.0
+    distribution: uniform
