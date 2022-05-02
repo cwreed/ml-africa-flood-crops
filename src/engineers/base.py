@@ -52,7 +52,7 @@ class BaseEngineer(ABC):
         _initialize_regions(self, region=region, combine_regions=combine_regions)
 
         self.data_folder = data_folder
-        self.savedir = self.data_folder / 'features' / self.dataset
+        self.savedir = self.data_folder / 'features' / self.region / self.dataset
         self.savedir.mkdir(exist_ok=True, parents=True)
 
         self.geospatial_files = self.get_geospatial_files(data_folder)
