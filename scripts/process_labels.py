@@ -8,14 +8,14 @@ sys.path.append("..")
 
 from src.processors import (
     CropHarvestProcessor,
-    C2SDFOProcessor,
-    STR2BB,
-    REGIONS
+    C2SDFOProcessor
 )
+from src.utils.regions import STR2BB, REGIONS, _check_region
 
-data_dir = Path(__file__).resolve().parents[1] / 'data'
+base_data_dir = Path(__file__).resolve().parents[1] / 'data'
 
 def process_cropharvest(
+        data_dir: Path,
         region: Union[str, list[str]],
         combine_regions: bool=False
     ) -> None:
@@ -24,6 +24,7 @@ def process_cropharvest(
     processor.process()
 
 def process_c2sdfo(
+        data_dir: Path,
         region: Union[str, list[str]],
         combine_regions: bool=False
     ) -> None:
@@ -40,8 +41,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    _check_region(args.region)
+
+    data_dir = (
+        (base_data_dir / args.region.lower()) if isinstance(args.region, str) else (base_data_dir / "_".join(args.region).lower())
+    )
+
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-    process_cropharvest(region=args.region, combine_regions=args.combine_regions)
-    process_c2sdfo(region=args.region, combine_regions=args.combine_regions)
+    process_cropharvest(data_dir=data_dir, region=args.region, combine_regions=args.combine_regions)
+    process_c2sdfo(data_dir=data_dir, region=args.region, combine_regions=args.combine_regions)
 

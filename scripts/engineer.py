@@ -6,15 +6,16 @@ from typing import Union
 
 sys.path.append('..')
 
-from src.utils.regions import STR2BB, REGIONS
 from src.engineers import (
     CropHarvestEngineer,
     C2SDFOEngineer
 )
+from src.utils.regions import STR2BB, REGIONS, _check_region
 
-data_dir = Path(__file__).resolve().parents[1] / 'data'
+base_data_dir = Path(__file__).resolve().parents[1] / 'data'
 
 def engineer_cropharvest(
+    data_dir: Path,
     region: Union[str, list[str]], 
     combine_regions: bool=False,
     val_set_size: float=0.1,
@@ -34,6 +35,7 @@ def engineer_cropharvest(
     )
 
 def engineer_c2sdfo(
+    data_dir: Path,
     region: Union[str, list[str]], 
     combine_regions: bool=False,
     val_set_size: float=0.1,
@@ -63,7 +65,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    _check_region(args.region)
+
+    data_dir = (
+        (base_data_dir / args.region.lower()) if isinstance(args.region, str) else (base_data_dir / "_".join(args.region).lower())
+    )
+
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-    engineer_cropharvest(args.region, args.combine_regions, args.val_set_size, args.test_set_size)
-    engineer_c2sdfo(args.region, args.combine_regions, args.val_set_size, args.test_set_size)
+    engineer_cropharvest(data_dir, args.region, args.combine_regions, args.val_set_size, args.test_set_size)
+    engineer_c2sdfo(data_dir, args.region, args.combine_regions, args.val_set_size, args.test_set_size)

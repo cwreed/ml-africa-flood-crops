@@ -44,8 +44,8 @@ def combine_bounding_boxes(names: Union[str, list[str]]) -> BoundingBox:
         max_lat = max_lat
     )
 
-def _initialize_regions(class_object, region: Union[str, list[str]], combine_regions: bool=False):
-    """Helper function to help initialize region attributes across many classes"""
+def _check_region(region: Union[str, list[str]]):
+    """Helper function to make sure a region argument is valid"""
     assert (
             (
                 (isinstance(region, str)) &
@@ -59,8 +59,11 @@ def _initialize_regions(class_object, region: Union[str, list[str]], combine_reg
                 all(r in STR2BB.keys() for r in region)
             )
         ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
-    
 
+def _initialize_regions(class_object, region: Union[str, list[str]], combine_regions: bool=False):
+    """Helper function to help initialize region attributes across many classes"""
+    _check_region(region)
+    
     class_object.region = region
 
     if combine_regions:

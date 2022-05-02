@@ -10,21 +10,18 @@ sys.path.append("..")
 
 from src.exporters import (
     CropHarvestExporter,
-    C2SDFOExporter,
-    STR2BB,
-    REGIONS
+    C2SDFOExporter
 )
+from src.utils.regions import STR2BB, REGIONS, _check_region
 
-data_dir = os.path.join(
-    Path(__file__).resolve().parents[1],
-    'data'
-)
+base_data_dir = Path(__file__).resolve().parents[1] / 'data'
 
-def export_cropharvest() -> None:
+def export_cropharvest(data_dir: Path) -> None:
     exporter = CropHarvestExporter(data_folder=data_dir)
     exporter.export()
 
 def export_c2sdfo(
+        data_dir: Path,
         region: Union[str, list[str]], 
         start_date: date, 
         end_date: date, 
@@ -52,10 +49,16 @@ if __name__ == "__main__":
     start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
     end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
 
+    _check_region(args.region)
+
+    data_dir = (
+        (base_data_dir / args.region.lower()) if isinstance(args.region, str) else (base_data_dir / "_".join(args.region).lower())
+    )
+
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-    export_cropharvest()
-    export_c2sdfo(args.region, start_date, end_date, args.n_positive_flood_labels, args.negative_to_positive_flood_ratio, args.combine_regions)
+    export_cropharvest(data_dir)
+    export_c2sdfo(data_dir, args.region, start_date, end_date, args.n_positive_flood_labels, args.negative_to_positive_flood_ratio, args.combine_regions)
 
     
 

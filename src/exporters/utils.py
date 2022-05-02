@@ -1,7 +1,7 @@
 from typing import Union, Optional
 from math import cos, radians
 
-from src.utils.regions import BoundingBox, STR2BB, REGIONS, combine_bounding_boxes
+from src.utils.regions import BoundingBox, STR2BB, REGIONS, combine_bounding_boxes, _check_region
 
 import ee
 
@@ -89,19 +89,7 @@ def bounding_boxes_to_polygon(ee_bboxes: list[EEBoundingBox]) -> ee.Geometry.Mul
 
 def _initialize_ee_regions(class_object, region: Union[str, list[str]], combine_regions: bool=False):
     """Helper function to help initialize region attributes across many classes"""
-    assert (
-            (
-                (isinstance(region, str)) &
-                (
-                    (region in REGIONS.keys()) | 
-                    (region in STR2BB.keys())
-                )
-            ) |
-            (
-                (isinstance(region, list)) & 
-                all(r in STR2BB.keys() for r in region)
-            )
-        ), f"Region must be one of {REGIONS.keys()} or one or more of {STR2BB.keys()}."
+    _check_region(region)
 
     class_object.region = region
 
