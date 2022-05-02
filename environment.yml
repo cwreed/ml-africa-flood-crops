@@ -20,4 +20,3 @@ dependencies:
   - torchvision
   - wandb
   - torchmetrics
-prefix: /Users/connor/opt/anaconda3/envs/floodcrops
