@@ -5,7 +5,7 @@ from typing import Union, Callable, Optional
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 import pytorch_lightning as pl
 import torchmetrics
 
@@ -326,11 +326,20 @@ class FloodMapper(pl.LightningModule):
         )
 
     def train_dataloader(self) -> DataLoader:
+        """Use a weighted sampler to deal with class imbalance"""
+        train_dataset = self.get_dataset(subset='train')
+        
+        weighted_sampler = WeightedRandomSampler(
+            train_dataset.output_class_weights, 
+            len(train_dataset.output_class_weights),
+            replacement=False
+        )
+
         return DataLoader(
-            self.get_dataset(subset='train'),
-            shuffle=True,
+            train_dataset,
             batch_size=self.hparams.batch_size,
-            num_workers=4
+            num_workers=4,
+            sampler=weighted_sampler
         )
 
     def val_dataloader(self) -> DataLoader:

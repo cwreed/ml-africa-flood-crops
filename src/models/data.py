@@ -149,3 +149,23 @@ class FloodClassificationDataset(Dataset):
         assert len(self.data_files) > 0, "No files loaded"
         output_tuple = self[0]
         return output_tuple[0].shape[0]
+    
+    @property
+    def output_class_samples(self) -> tuple[int, int]:
+        """Calculates the number of samples belonging to each flood_label class"""
+        assert len(self.data_files) > 0, "No files loaded"
+        class_counts = [0] * (self.num_output_classes + 1)
+        for output_tuple in self:
+            class_counts[int(output_tuple[1])] += 1
+        return class_counts
+
+    @property
+    def output_class_weights(self) -> list[float]:
+        """Calculates the weights of the samples for weighted random sampling"""
+        assert len(self.data_files) > 0, "No files loaded"
+        N = self.__len__()
+        class_numbers = self.output_class_samples
+        weights = [
+            (N / class_numbers[int(i[1])]) for i in self
+        ]
+        return weights
