@@ -130,9 +130,10 @@ class C2SDFOExporter(BaseExporter):
 
         self.n_neg_per_img = (
             np.array(self.n_neg_per_img) + 
-            (np.array(self.n_neg_per_img) - 3 * perm_water_df.groupby(['began', 'ended']).size().values)
+            (np.array(self.n_neg_per_img) - (3/2) * perm_water_df.groupby(['began', 'ended']).size().values)
         ).tolist()
 
+        logger.info(f"Updated number of negative samples that will be taken per image = {self.n_neg_per_img}")
 
         logger.info("Sampling negative pixels near positive pixels.")
 
