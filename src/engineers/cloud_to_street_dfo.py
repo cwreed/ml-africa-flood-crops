@@ -16,6 +16,7 @@ class C2SDFODataInstance(BaseDataInstance):
 
     flood_label: int
     flood_prior: int
+    perm_water: int
     neighboring_array: np.ndarray
 
 class C2SDFOEngineer(BaseEngineer):
@@ -23,6 +24,7 @@ class C2SDFOEngineer(BaseEngineer):
     sentinel_dataset = C2SDFOSentinel1Exporter.dataset
     dataset = C2SDFOExporter.dataset
     label_str = 'flooded'
+    perm_water_str = 'jrc_perm_water'
 
     def read_labels(self, data_folder: Path) -> pd.DataFrame:
         """Read in the processed labels"""
@@ -55,6 +57,7 @@ class C2SDFOEngineer(BaseEngineer):
 
         """Get label details"""
         flood_label = self.labels.loc[label_id, self.label_str]
+        perm_water_label = self.labels.loc[label_id, self.perm_water_str]
         began = self.labels.loc[label_id, 'began']
         ended = self.labels.loc[label_id, 'ended']
 
@@ -118,7 +121,8 @@ class C2SDFOEngineer(BaseEngineer):
                 data_instances.append(
                     C2SDFODataInstance(
                         flood_label=0 if (before_flood | after_flood) else flood_label,
-                        flood_prior=flood_label if after_flood else 0,                  
+                        flood_prior=flood_label if after_flood else 0,
+                        perm_water=perm_water_label,                  
                         label_lat=label_lat,
                         label_lon=label_lon,
                         instance_lat=closest_lat,
