@@ -221,7 +221,7 @@ class CroplandMapper(pl.LightningModule):
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser_args: dict[str, tuple[type, any]] = {
-            '--data_folder': (str, str(Path('../data').absolute())),
+            '--data_folder': (str, str(Path('../data/nigeria').absolute())),
             '--model_base': (str, 'lstm'),
             '--hidden_size': (int, 128),
             '--classifier_hidden_size': (int, 256),
@@ -322,7 +322,8 @@ class FloodMapper(pl.LightningModule):
     def get_dataset(self, subset: str) -> FloodClassificationDataset:
         return FloodClassificationDataset(
             data_folder = self.data_folder,
-            subset = subset
+            subset = subset,
+            use_perm_water = self.hparams.use_perm_water 
         )
 
     def train_dataloader(self) -> DataLoader:
@@ -332,28 +333,31 @@ class FloodMapper(pl.LightningModule):
         weighted_sampler = WeightedRandomSampler(
             train_dataset.output_class_weights, 
             len(train_dataset.output_class_weights),
-            replacement=False
+            replacement=True
         )
 
         return DataLoader(
             train_dataset,
             batch_size=self.hparams.batch_size,
             num_workers=4,
-            sampler=weighted_sampler
+            sampler=weighted_sampler,
+            drop_last=True
         )
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(
             self.get_dataset(subset='validation'),
             batch_size=self.hparams.batch_size,
-            num_workers=4
+            num_workers=4,
+            drop_last=True
         )
 
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
             self.get_dataset(subset='test'),
             batch_size=self.hparams.batch_size,
-            num_workers=4
+            num_workers=4,
+            drop_last=True
         )
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
@@ -509,7 +513,7 @@ class FloodMapper(pl.LightningModule):
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser_args: dict[str, tuple[type, any]] = {
-            '--data_folder': (str, str(Path('../data').absolute())),
+            '--data_folder': (str, str(Path('../data/nigeria').absolute())),
             '--model_base': (str, 'lstm'),
             '--hidden_size': (int, 128),
             '--classifier_hidden_size': (int, 256),
@@ -524,6 +528,8 @@ class FloodMapper(pl.LightningModule):
 
         for k, v in parser_args.items():
             parser.add_argument(k, type=v[0], default=v[1])
+        
+        parser.add_argument('--use_perm_water', dest='use_perm_water', action='store_true')
 
         parser.add_argument('--multi_headed', dest='multi_headed', action='store_true')
         parser.add_argument('--not_multi_headed', dest='multi_headed', action='store_false')

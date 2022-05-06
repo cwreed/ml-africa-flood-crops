@@ -80,15 +80,17 @@ class FloodClassificationDataset(Dataset):
     def __init__(
         self,
         data_folder: Path,
-        subset: str
+        subset: str,
+        use_perm_water: bool
     ):
         self.data_folder = data_folder
         self.features_dir = data_folder / 'features' / C2SDFOEngineer.dataset
 
         assert subset in ['train', 'validation', 'test']
         self.subset = subset
+        self.use_perm_water = use_perm_water
 
-        self.data_files, self.lookup, self.normalizing_dict = self.load_files(self.features_dir, self.subset)
+        self.data_files, self.lookup, self.normalizing_dict = self.load_files(self.features_dir, self.subset, self.use_perm_water)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, int, int]:
         file, file_index = self.lookup[index]
@@ -109,7 +111,7 @@ class FloodClassificationDataset(Dataset):
         return len(self.lookup)
 
     @staticmethod
-    def load_files(features_dir: Path, subset: str) -> tuple[list[Path], list[tuple[str, int]], Optional[dict]]:
+    def load_files(features_dir: Path, subset: str, use_perm_water: bool) -> tuple[list[Path], list[tuple[str, int]], Optional[dict]]:
         data_files = list((features_dir / subset).glob('*.pkl'))
         lookup_file = features_dir / subset / 'lookup.ref'
         normalizing_dict_file = features_dir / 'normalizing_dict.pkl'
@@ -123,6 +125,17 @@ class FloodClassificationDataset(Dataset):
                 normalizing_dict = pickle.load(f)
         else:
             normalizing_dict = None
+
+        if not use_perm_water:
+            non_perm_water_indices = []
+            for i, (file, file_index) in enumerate(lookup):
+                filepath = features_dir / subset / f'{file}.pkl'
+                with filepath.open('rb') as f:
+                    data_instance = pickle.load(f)[file_index]
+                    if data_instance.perm_water == 0:
+                        non_perm_water_indices.append(i)
+
+            lookup = [lookup[i] for i in non_perm_water_indices]
         
         return data_files, lookup, normalizing_dict
 
@@ -165,7 +178,5 @@ class FloodClassificationDataset(Dataset):
         assert len(self.data_files) > 0, "No files loaded"
         N = self.__len__()
         class_numbers = self.output_class_samples
-        weights = [
-            (N / class_numbers[int(i[1])]) for i in self
-        ]
+        weights = [(N / class_numbers[int(i[1])]) for i in self]
         return weights
