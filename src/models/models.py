@@ -323,7 +323,7 @@ class FloodMapper(pl.LightningModule):
         return FloodClassificationDataset(
             data_folder = self.data_folder,
             subset = subset,
-            use_perm_water = self.hparams.use_perm_water 
+            perm_water_proportion = self.hparams.perm_water_proportion
         )
 
     def train_dataloader(self) -> DataLoader:
@@ -523,13 +523,12 @@ class FloodMapper(pl.LightningModule):
             '--batch_size': (int, 64),
             '--num_classification_layers': (int, 2),
             '--alpha': (float, 0.5),
-            '--flood_probability_threshold': (float, 0.5)
+            '--flood_probability_threshold': (float, 0.5),
+            '--perm_water_proportion': (float, 0)
         }
 
         for k, v in parser_args.items():
             parser.add_argument(k, type=v[0], default=v[1])
-        
-        parser.add_argument('--use_perm_water', dest='use_perm_water', action='store_true')
 
         parser.add_argument('--multi_headed', dest='multi_headed', action='store_true')
         parser.add_argument('--not_multi_headed', dest='multi_headed', action='store_false')
