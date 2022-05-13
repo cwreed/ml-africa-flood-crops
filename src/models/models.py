@@ -1,6 +1,8 @@
 from pathlib import Path
+import sys
 from argparse import ArgumentParser, Namespace
 from typing import Union, Callable, Optional
+from tqdm import tqdm
 
 import torch
 from torch import nn
@@ -9,14 +11,19 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 import pytorch_lightning as pl
 import torchmetrics
 
+import xarray as xr
+import numpy as np
+
 from .model_bases import STR2BASE, STR2OPTIM
 from .data import CroplandClassificationDataset, FloodClassificationDataset
+from .utils import preds_to_xr
+from ..engineers.base import TestInstance
 
 class CroplandMapper(pl.LightningModule):
     def __init__(self, hparams: Namespace) -> None:
         super().__init__()
 
-        pl.seed_everything(2022)
+        pl.seed_everything(hparams.random_seed)
         self.save_hyperparameters(hparams)
 
         """Dataset initialization"""
@@ -216,7 +223,40 @@ class CroplandMapper(pl.LightningModule):
             }
 
         return metrics
+    
+    def predict(
+        self,
+        input_data: TestInstance,
+        batch_size: int,
+    ) -> xr.DataArray:
         
+        self.eval()
+
+        predictions: list[np.ndarray] = []
+        cur_i = 0
+
+        pbar = tqdm(total=input_data.x.shape[0]-1)
+
+        while cur_i < (input_data.x.shape[0] - 1):
+            batch_x = torch.from_numpy(
+                input_data.x[cur_i:(cur_i + batch_size)]
+            ).float()
+
+            with torch.no_grad():
+                batch_preds = self.forward(batch_x)
+
+            predictions.append(batch_preds.numpy())
+            cur_i += batch_size
+            pbar.update(batch_size)
+        
+        all_preds = np.concatenate(predictions, axis=0)
+        if all_preds.ndim == 1:
+            all_preds = np.expand_dims(all_preds, axis=-1)
+        
+        return preds_to_xr(
+            all_preds, lats=input_data.lat, lons=input_data.lon, feature_labels=None
+        )
+
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
@@ -230,7 +270,8 @@ class CroplandMapper(pl.LightningModule):
             '--weight_decay': (float, 0.0001),
             '--batch_size': (int, 64),
             '--num_classification_layers': (int, 2),
-            '--crop_probability_threshold': (float, 0.5)
+            '--crop_probability_threshold': (float, 0.5),
+            '--random_seed': (int, 2022)
         }
 
         for k, v in parser_args.items():
@@ -246,7 +287,7 @@ class FloodMapper(pl.LightningModule):
     def __init__(self, hparams: Namespace) -> None:
         super().__init__()
 
-        pl.seed_everything(2022)
+        pl.seed_everything(hparams.random_seed)
         self.save_hyperparameters(hparams)
 
         """Dataset initialization"""
@@ -508,6 +549,39 @@ class FloodMapper(pl.LightningModule):
             }
 
         return metrics
+    
+    def predict(
+        self,
+        input_data: TestInstance,
+        batch_size: int,
+    ) -> xr.DataArray:
+        
+        self.eval()
+
+        predictions: list[np.ndarray] = []
+        cur_i = 0
+
+        pbar = tqdm(total=input_data.x.shape[0]-1)
+
+        while cur_i < (input_data.x.shape[0] - 1):
+            batch_x = torch.from_numpy(
+                input_data.x[cur_i:(cur_i + batch_size)]
+            ).float()
+
+            with torch.no_grad():
+                batch_preds = self.forward(batch_x)
+
+            predictions.append(batch_preds.numpy())
+            cur_i += batch_size
+            pbar.update(batch_size)
+        
+        all_preds = np.concatenate(predictions, axis=0)
+        if all_preds.ndim == 1:
+            all_preds = np.expand_dims(all_preds, axis=-1)
+        
+        return preds_to_xr(
+            all_preds, lats=input_data.lat, lons=input_data.lon, feature_labels=None
+        )
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
@@ -524,7 +598,8 @@ class FloodMapper(pl.LightningModule):
             '--num_classification_layers': (int, 2),
             '--alpha': (float, 0.5),
             '--flood_probability_threshold': (float, 0.5),
-            '--perm_water_proportion': (float, 0)
+            '--perm_water_proportion': (float, 0),
+            '--random_seed': (int, 2022)
         }
 
         for k, v in parser_args.items():
