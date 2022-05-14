@@ -1,11 +1,18 @@
 from pathlib import Path
 from argparse import Namespace
+import sys
+from typing import Union
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 
-def train_model(model: pl.LightningModule, hparams: Namespace) -> pl.LightningModule:
+sys.path.append("..")
+
+from src.models import CroplandMapper, FloodMapper
+
+def train_model(model: Union[CroplandMapper, FloodMapper], hparams: Namespace) -> Union[CroplandMapper, FloodMapper]:
 
     hparams.data_folder = Path(hparams.data_folder)
     hparams.project_dir = hparams.data_folder.resolve().parents[1]
@@ -13,7 +20,7 @@ def train_model(model: pl.LightningModule, hparams: Namespace) -> pl.LightningMo
     callbacks = []
 
     if hparams.checkpoint:
-        model_checkpoint_dir = hparams.project_dir / 'models' / hparams.model_type
+        model_checkpoint_dir = hparams.project_dir / 'models' / hparams.data_folder.name / hparams.model_type
         model_checkpoint_dir.mkdir(exist_ok=True, parents=True)
         callbacks.append(
             ModelCheckpoint(
@@ -37,7 +44,7 @@ def train_model(model: pl.LightningModule, hparams: Namespace) -> pl.LightningMo
         project='ml-africa-flood-crops',
         name=hparams.run_name,
         job_type=f'train_{hparams.model_type}',
-        log_model=hparams.checkpoint
+        log_model=hparams.checkpoint,
     )
 
     trainer = pl.Trainer(
@@ -59,3 +66,24 @@ def train_model(model: pl.LightningModule, hparams: Namespace) -> pl.LightningMo
 
     return model
 
+def test_model(model_path: Path, data_dir: Path):
+
+    """Load in the model with torch"""
+    checkpoint = torch.load(model_path)
+    
+    hparams_dict = checkpoint['hyper_parameters']
+    hparams_dict['data_folder'] = data_dir
+    hparams = Namespace(**hparams_dict)
+
+    state_dict = checkpoint['state_dict']
+
+    if 'cropland' in model_path.parents[0].name:
+        model = CroplandMapper(hparams)
+        model.load_state_dict(state_dict)
+    elif 'flood' in model_path.parents[0].name:
+        model = FloodMapper(hparams)
+        model.load_state_dict(state_dict)
+
+    trainer = pl.Trainer()
+
+    trainer.test(model)
