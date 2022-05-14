@@ -82,7 +82,8 @@ class FloodClassificationDataset(Dataset):
         self,
         data_folder: Path,
         subset: str,
-        perm_water_proportion: Optional[float]
+        random_seed: int,
+        perm_water_proportion: Optional[float],
     ):
         self.data_folder = data_folder
         self.features_dir = data_folder / 'features' / C2SDFOEngineer.dataset
@@ -98,9 +99,9 @@ class FloodClassificationDataset(Dataset):
         self.perm_water_proportion = perm_water_proportion
 
         """Set these here to ensure permanent water sampling is reproducible"""
-        random.seed(2022)
-        np.random.seed(2022)
-        torch.manual_seed(2022)
+        random.seed(random_seed)
+        np.random.seed(random_seed)
+        torch.manual_seed(random_seed)
 
         self.data_files, self.lookup, self.normalizing_dict = self.load_files(self.features_dir, self.subset, self.perm_water_proportion)
 
@@ -201,7 +202,7 @@ class FloodClassificationDataset(Dataset):
             Rows: Negative label (0), positive label (1)
             """
             class_counts[int(output_tuple[1]), int(output_tuple[2])] += 1
-            
+
         return class_counts
 
     @property

@@ -227,7 +227,7 @@ class CroplandMapper(pl.LightningModule):
     def predict(
         self,
         input_data: TestInstance,
-        batch_size: int,
+        batch_size: int=64,
     ) -> xr.DataArray:
         
         self.eval()
@@ -364,6 +364,7 @@ class FloodMapper(pl.LightningModule):
         return FloodClassificationDataset(
             data_folder = self.data_folder,
             subset = subset,
+            random_seed = self.hparams.random_seed,
             perm_water_proportion = self.hparams.perm_water_proportion
         )
 
@@ -553,7 +554,7 @@ class FloodMapper(pl.LightningModule):
     def predict(
         self,
         input_data: TestInstance,
-        batch_size: int,
+        batch_size: int=64,
     ) -> xr.DataArray:
         
         self.eval()

@@ -23,4 +23,4 @@ def preds_to_xr(
 
         data_dict[prediction_label] = predictions[:, prediction_idx]
 
-    return pd.DataFrame(data=data_dict).set_index(['lat', 'lon']).to_xarray()
+    return pd.DataFrame(data=data_dict).set_index(['lat', 'lon']).to_xarray().to_array()
