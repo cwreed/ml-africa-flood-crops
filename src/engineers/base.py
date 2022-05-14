@@ -2,9 +2,8 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Union
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import logging
-import warnings
 from tqdm import tqdm
 import pickle
 
@@ -19,6 +18,7 @@ import xarray as xr
 
 @dataclass
 class BaseDataInstance:
+
     label_lat: float
     label_lon: float
     instance_lat: float
@@ -32,6 +32,13 @@ class BaseDataInstance:
             (self.instance_lat <= bounding_box.max_lat) &
             (self.instance_lat >= bounding_box.min_lat)
         )
+
+@dataclass
+class TestInstance:
+
+    x: np.ndarray
+    lat: np.ndarray
+    lon: np.ndarray
 
 class BaseEngineer(ABC):
     """
@@ -174,7 +181,7 @@ class BaseEngineer(ABC):
                 )
                 combined.attrs['band_descriptions'] = self.BANDS
 
-                da_split_by_windows.append(combined)
+                da_split_by_windows.append(combined.to_array())
                 da_index += 1
             
             return da_split_by_windows
@@ -191,7 +198,7 @@ class BaseEngineer(ABC):
             combined = xr.concat(da_split_by_time, pd.Index(timesteps, name='time'))
             combined.attrs['band_descriptions'] = self.BANDS
 
-            return combined
+            return combined.to_array()
 
     def update_normalizing_values(self, array: np.ndarray) -> None:
         """
@@ -253,34 +260,6 @@ class BaseEngineer(ABC):
     @abstractmethod
     def process_single_file(self) -> Optional[BaseDataInstance]:
         raise NotImplementedError
-    
-    def calculate_ndvi(self, input_array: np.ndarray, n_dims: int=2) -> np.ndarray:
-        """Calculates and adds NDVI as a band to the given input array"""
-        assert (
-            'sentinel-2' in self.sentinel_dataset
-        ), f"Can only calculate NDVI for Sentinel-2 datasets: current dataset is {self.sentinel_dataset}"
-
-        if n_dims == 2:
-            near_infrared = input_array[:, self.BANDS.index('B8')]
-            red = input_array[:, self.BANDS.index('B4')]
-        elif n_dims == 3:
-            near_infrared = input_array[:, :, self.BANDS.index('B8')]
-            red = input_array[:, :, self.BANDS.index('B4')]
-        else:
-            raise ValueError(f"Expected n_dims to be 2 or 3: got {n_dims}")
-        
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                'ignore', message='invalid value encountered in true_divide'
-            )
-
-            ndvi = np.where(
-                (near_infrared - red) > 0,
-                (near_infrared - red) / (near_infrared + red),
-                0
-            )
-        
-        return np.append(input_array, np.expand_dims(ndvi, -1), axis = -1)
 
     def engineer(
         self,
@@ -380,8 +359,6 @@ class BaseEngineer(ABC):
                     pickle.dump(normalizing_dict, f)
             else:
                 logger.debug("No normalizing dict calculated!")
-                  
-
 
 
 

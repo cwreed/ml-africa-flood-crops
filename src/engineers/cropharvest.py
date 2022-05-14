@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from typing import Optional
 from datetime import date
 import logging
+import warnings
 
 from src.exporters import CropHarvestExporter, CropHarvestSentinel2Exporter
-from .base import BaseDataInstance, BaseEngineer
+from .base import BaseDataInstance, BaseEngineer, TestInstance
 
 import numpy as np
 import pandas as pd
@@ -27,6 +28,34 @@ class CropHarvestEngineer(BaseEngineer):
         cropharvest = data_folder / 'processed' / CropHarvestExporter.dataset / f"crop_labels_{self.region_name}.nc"
         assert cropharvest.exists(), "process_labels.py must be run to load labels"
         return xr.open_dataset(cropharvest).to_dataframe().dropna().reset_index()
+    
+    def calculate_ndvi(self, input_array: np.ndarray, n_dims: int=2) -> np.ndarray:
+        """Calculates and adds NDVI as a band to the given input array"""
+        assert (
+            'sentinel-2' in self.sentinel_dataset
+        ), f"Can only calculate NDVI for Sentinel-2 datasets: current dataset is {self.sentinel_dataset}"
+
+        if n_dims == 2:
+            near_infrared = input_array[:, self.BANDS.index('B8')]
+            red = input_array[:, self.BANDS.index('B4')]
+        elif n_dims == 3:
+            near_infrared = input_array[:, :, self.BANDS.index('B8')]
+            red = input_array[:, :, self.BANDS.index('B4')]
+        else:
+            raise ValueError(f"Expected n_dims to be 2 or 3: got {n_dims}")
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', message='invalid value encountered in true_divide'
+            )
+
+            ndvi = np.where(
+                (near_infrared - red) > 0,
+                (near_infrared - red) / (near_infrared + red),
+                0
+            )
+        
+        return np.append(input_array, np.expand_dims(ndvi, -1), axis = -1)
     
     def process_single_file(
         self,
@@ -104,3 +133,70 @@ class CropHarvestEngineer(BaseEngineer):
         else:
             logger.error("Too many NaN values--skipping")
             return None
+
+    def tif_to_np(
+        self,
+        filepath: Path,
+        start_date: date,
+        add_ndvi: bool,
+        nan_fill: float,
+        days_per_timestep: int,
+        sliding_window: bool,
+        n_timesteps_per_instance: Optional[int]=None,
+        normalizing_dict: Optional[dict[str, np.ndarray]]=None,
+    ) -> list[TestInstance]:
+        """Loads a region of data from a TIF into a TestInstance for predictions"""
+
+        x = self.load_tif(
+            filepath=filepath, 
+            start_date=start_date,
+            days_per_timestep=days_per_timestep,
+            sliding_window=sliding_window,
+            n_timesteps_per_instance=n_timesteps_per_instance
+        )
+
+        if isinstance(x, list):
+            test_instances: list[TestInstance] = []
+
+            for instance in x:
+                lon, lat = np.meshgrid(instance.x.values, instance.y.values)
+                flat_lon, flat_lat = (
+                    np.squeeze(lon.reshape(-1, 1), -1),
+                    np.squeeze(lat.reshape(-1, 1), -1)
+                )
+
+                x_np = instance.values[0]
+                x_np = x_np.reshape(x_np.shape[0], x_np.shape[1], x_np.shape[2]*x_np.shape[3])
+                x_np = np.moveaxis(x_np, -1, 0)
+
+                if add_ndvi:
+                    x_np = self.calculate_ndvi(x_np, n_dims=3)
+
+                x_np = self.fill_nan(x_np, nan_fill=nan_fill)
+
+                if normalizing_dict is not None:
+                    x_np = (x_np - normalizing_dict['mean']) / normalizing_dict['std']
+
+                test_instances.append(TestInstance(x=x_np, lat=flat_lat, lon=flat_lon))
+            
+            return test_instances
+        else:
+            lon, lat = np.meshgrid(x.x.values, x.y.values)
+            flat_lon, flat_lat = (
+                np.squeeze(lon.reshape(-1, 1), -1),
+                np.squeeze(lat.reshape(-1, 1), -1)
+            )
+
+            x_np = x.values[0]
+            x_np = x_np.reshape(x_np.shape[0], x_np.shape[1], x_np.shape[2]*x_np.shape[3])
+            x_np = np.moveaxis(x_np, -1, 0)
+
+            if add_ndvi:
+                x_np = self.calculate_ndvi(x_np, n_dims=3)
+
+            x_np = self.fill_nan(x_np, nan_fill=nan_fill)
+
+            if normalizing_dict is not None:
+                x_np = (x_np - normalizing_dict['mean']) / normalizing_dict['std']
+            
+            return [TestInstance(x=x_np, lat=flat_lat, lon=flat_lon)]

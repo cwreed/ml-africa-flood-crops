@@ -5,7 +5,7 @@ from datetime import date, datetime
 import logging
 
 from src.exporters import C2SDFOExporter, C2SDFOSentinel1Exporter
-from .base import BaseDataInstance, BaseEngineer
+from .base import BaseDataInstance, BaseEngineer, TestInstance
 
 import numpy as np
 import pandas as pd
@@ -136,3 +136,67 @@ class C2SDFOEngineer(BaseEngineer):
                 continue
         
         return data_instances
+    
+    def tif_to_np(
+        self,
+        filepath: Path,
+        start_date: date,
+        nan_fill: float,
+        days_per_timestep: int,
+        sliding_window: bool,
+        n_timesteps_per_instance: Optional[int],
+        normalizing_dict: Optional[dict[str, np.ndarray]],
+    ) -> list[TestInstance]:
+        """Loads a region of data from a TIF into a TestInstance for predictions"""
+
+        x = self.load_tif(
+            filepath=filepath, 
+            start_date=start_date,
+            days_per_timestep=days_per_timestep,
+            sliding_window=sliding_window,
+            n_timesteps_per_instance=n_timesteps_per_instance
+        )
+
+        if isinstance(x, list):
+            test_instances: list[TestInstance] = []
+
+            for instance in x:
+                lon, lat = np.meshgrid(instance.x.values, instance.y.values)
+                flat_lon, flat_lat = (
+                    np.squeeze(lon.reshape(-1, 1), -1),
+                    np.squeeze(lat.reshape(-1, 1), -1)
+                )
+
+                x_np = instance.values[0]
+                x_np = x_np.reshape(x_np.shape[0], x_np.shape[1], x_np.shape[2]*x_np.shape[3])
+                x_np = np.moveaxis(x_np, -1, 0)
+
+                x_np = self.fill_nan(x_np, nan_fill=nan_fill)
+
+                if normalizing_dict is not None:
+                    x_np = (x_np - normalizing_dict['mean']) / normalizing_dict['std']
+
+                test_instances.append(TestInstance(x=x_np, lat=flat_lat, lon=flat_lon))
+            
+            return test_instances
+        else:
+            lon, lat = np.meshgrid(x.x.values(), x.y.values())
+            flat_lon, flat_lat = (
+                np.squeeze(lon.reshape(-1, 1), -1),
+                np.squeeze(lat.reshape(-1, 1), -1)
+            )
+
+            x_np = x.values[0]
+            x_np = x_np.reshape(x_np.shape[0], x_np.shape[1], x_np.shape[2]*x_np.shape[3])
+            x_np = np.moveaxis(x_np, -1, 0)
+
+            x_np = self.fill_nan(x_np, nan_fill=nan_fill)
+
+            if normalizing_dict is not None:
+                x_np = (x_np - normalizing_dict['mean']) / normalizing_dict['std']
+            
+            return [TestInstance(x=x_np, lat=flat_lat, lon=flat_lon)]
+
+        
+
+
